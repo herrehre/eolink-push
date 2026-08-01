@@ -6,6 +6,8 @@
 ## 特性
 
 - `/api <接口描述>` 一句话入口：AI 自动定位 Controller、提取参数与实体字段、从注释取中文名、生成 OpenAPI 规格并推送。
+- 「当前项目」自动解析：优先 Codex 打开的工作区（含 `pom.xml`/`build.gradle` 即视为 Spring Boot 项目），
+  否则使用配置 `projectDir`（可指向任意 Spring Boot 项目，如 `../crm-master`）。
 - 幂等同步：按「方法 + 路径」匹配，已存在则更新（内容未变跳过）、不存在则创建、分组缺失自动创建、默认不删除。
 - CLI 手动用法：`validate` / `push` / `list`，stdout 输出 JSON，退出码约定，可进 CI。
 - 凭证本地保存（gitignore）或环境变量注入，仓库内无任何真实凭证。
@@ -44,6 +46,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File eolink\eolink.ps1 push -Spec
 validate [-Spec <path>]                       # 校验规格：summary 与字段中文名必填
 push [-Spec <path>] [-Project <id>] [-DryRun] # 幂等同步到 Eolink
 list [-Project <id>]                          # 列出项目/分组/接口
+project [-Dir <path>]                         # 解析当前 Spring Boot 项目路径
 ```
 
 退出码：`0` 成功 / `1` 校验失败 / `2` 配置或鉴权错误 / `3` 网络错误 / `4` 部分成功或功能暂不支持。
@@ -68,7 +71,7 @@ stdout 为 JSON（供 AI/CI 解析），提示信息在 stderr。
 
 ## /api 用法（AI 入口）
 
-在 Codex 中打开本仓库后直接输入：
+在 Codex 中打开本仓库（或直接打开你的 Spring Boot 项目并复制 AGENTS.md 到项目根目录）后输入：
 
 ```
 /api 客户管理模块接口
@@ -76,7 +79,8 @@ stdout 为 JSON（供 AI/CI 解析），提示信息在 stderr。
 /api 把用户登录接口推上去
 ```
 
-AI 会读取 `projectDir` 指向的 Spring Boot 代码，按以下优先级为字段取中文名：
+AI 会先解析「当前项目」（当前工作区优先，其次 `projectDir`），读取其中的 Spring Boot 代码，
+按以下优先级为字段取中文名：
 Java 字段 `// 注释` 或 Javadoc `/** 注释 */` → SQL 列 `COMMENT` → 字段名兜底。
 规格累积写入 `eolink/specs/openapi.json`，推送后汇报每个接口的创建/更新/跳过结果。
 

@@ -15,8 +15,13 @@
 当用户消息以 `/api` 开头时，执行接口推送流程，参数为接口描述（如「客户列表接口」「推送客户管理模块」）。
 若没有本地配置或未安装步骤，先引导用户运行 `eolink/setup.ps1`。
 
-1. **定位代码**：读取配置 `projectDir`（默认 `eolink/eolink.config.json` 中的值）指向的 Spring Boot 项目；
-   根据描述定位相关的 Controller 方法。
+1. **定位项目代码（当前项目）**：先运行
+   `powershell -NoProfile -ExecutionPolicy Bypass -File eolink/eolink.ps1 project`
+   拿到项目路径，规则为：
+   - 优先：Codex 当前工作区（若含 `pom.xml`/`build.gradle` 且 `src/main/java`，即用户说的「当前项目」）；
+   - 其次：`eolink/eolink.config.json` 中的 `projectDir`（可指向 `../crm-master` 等相对路径，相对于本仓库解析）；
+   - 都没有 → 提示用户先运行 `eolink/setup.ps1` 设置 `projectDir`。
+   然后根据描述定位该项目中的 Controller 方法。
 2. **提取接口数据**：读取 Spring MVC 注解 `@RequestMapping` / `@GetMapping` / `@PostMapping` /
    `@PutMapping` / `@DeleteMapping` 得到方法与路径；`@PathVariable` / `@RequestParam` / `@RequestBody`
    得到路径参数、Query 参数与请求体；返回值类型得到响应字段。

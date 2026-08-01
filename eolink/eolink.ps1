@@ -17,12 +17,13 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('validate', 'push', 'list', 'help')]
+    [ValidateSet('validate', 'push', 'list', 'project', 'help')]
     [string]$Command = 'help',
 
     [string]$Spec,
     [string]$Project,
     [string]$Group,
+    [string]$Dir,
     [switch]$DryRun,
     [switch]$FullImport,
     [switch]$Clean,
@@ -514,7 +515,7 @@ function Invoke-Validate {
         Exit-Json -Code 1 -Payload @{ ok = $false; command = 'validate'; error = 'missing openapi/paths; only OpenAPI 3.0 JSON is supported' }
     }
 
-    $ops = Convert-SpecToOperations -Spec $spec -Config $Config
+    $ops = @(Convert-SpecToOperations -Spec $spec -Config $Config)
     $issues = @()
     foreach ($op in $ops) {
         $loc = "$($op.method.ToUpper()) /$($op.path)"
@@ -582,7 +583,7 @@ function Invoke-Push {
         Exit-Json -Code 1 -Payload @{ ok = $false; command = 'push'; error = 'spec has no paths' }
     }
 
-    $ops = Convert-SpecToOperations -Spec $spec -Config $Config
+    $ops = @(Convert-SpecToOperations -Spec $spec -Config $Config)
     if ($ops.Count -eq 0) {
         Exit-Json -Code 0 -Payload @{ ok = $true; command = 'push'; spec = $SpecPath; created = 0; updated = 0; skipped = 0; apis = @() }
     }
@@ -675,6 +676,43 @@ function Invoke-List {
     Exit-Json -Code 0 -Payload $out
 }
 
+function Test-SpringBootProject {
+    param([string]$Dir)
+    if (-not (Test-Path -LiteralPath $Dir)) { return $false }
+    $hasPom = Test-Path -LiteralPath (Join-Path $Dir 'pom.xml')
+    $hasGradle = (Test-Path -LiteralPath (Join-Path $Dir 'build.gradle')) -or (Test-Path -LiteralPath (Join-Path $Dir 'build.gradle.kts'))
+    $hasJavaSrc = Test-Path -LiteralPath (Join-Path $Dir 'src\main\java')
+    return (($hasPom -or $hasGradle) -and $hasJavaSrc)
+}
+
+function Invoke-Project {
+    param([hashtable]$Config, [string]$DirOverride)
+    $scriptDir = Resolve-ScriptDir
+    $cwd = (Get-Location).Path
+    $candidates = New-Object System.Collections.ArrayList
+    if ($DirOverride) { $candidates.Add($DirOverride) | Out-Null }
+    $candidates.Add($cwd) | Out-Null
+    if ($Config.projectDir) {
+        $p = [string]$Config.projectDir
+        $repoRoot = Split-Path $scriptDir -Parent
+        if (-not [System.IO.Path]::IsPathRooted($p)) { $p = Join-Path $repoRoot $p }
+        $candidates.Add($p) | Out-Null
+    }
+
+    $resolved = $null
+    foreach ($c in $candidates) {
+        if (Test-SpringBootProject -Dir $c) { $resolved = $c; break }
+    }
+    if (-not $resolved) {
+        Exit-Json -Code 2 -Payload @{
+            ok = $false; command = 'project'
+            error = 'no Spring Boot project found (checked: current workspace and config projectDir)'
+            hint = 'run setup.ps1 to set projectDir, or open Codex in the project directory'
+        }
+    }
+    Exit-Json -Code 0 -Payload @{ ok = $true; command = 'project'; projectDir = [System.IO.Path]::GetFullPath($resolved) }
+}
+
 function Show-Help {
     $text = @'
 eolink-push CLI
@@ -687,6 +725,7 @@ COMMANDS
   push [-Spec <path>] [-Project <id>] [-DryRun] [-FullImport] [-Clean]
                                      idempotent sync of spec APIs to Eolink
   list [-Project <id>]               list projects / groups / APIs
+  project [-Dir <path>]              resolve the Spring Boot project (current workspace first)
   help                               show this help
 
 EXIT CODES
@@ -705,5 +744,6 @@ switch ($Command) {
     'validate' { Invoke-Validate -Config $cfg -SpecPath $Spec }
     'push'     { Invoke-Push -Config $cfg -SpecPath $Spec -ProjectOverride $Project -DryRun $DryRun -FullImport $FullImport -Clean $Clean }
     'list'     { Invoke-List -Config $cfg -ProjectOverride $Project }
+    'project'  { Invoke-Project -Config $cfg -DirOverride $Dir }
     default    { Show-Help }
 }
