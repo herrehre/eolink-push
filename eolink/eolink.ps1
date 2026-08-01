@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   eolink-push CLI: validate / push / list APIs from an OpenAPI 3.0 JSON spec to Eolink Apikit.
 
@@ -65,6 +65,7 @@ function Get-Config {
         projectDir    = ''
         sqlCommentsPath = ''
         specPath      = 'specs/openapi.json'
+        aiIde         = 'trae'
     }
 
     if (Test-Path -LiteralPath $candidate) {
@@ -707,7 +708,7 @@ function Invoke-Project {
         Exit-Json -Code 2 -Payload @{
             ok = $false; command = 'project'
             error = 'no Spring Boot project found (checked: current workspace and config projectDir)'
-            hint = 'run setup.ps1 to set projectDir, or open Codex in the project directory'
+            hint = 'run setup.ps1 to set projectDir, or open the project in Trae/Codex'
         }
     }
     Exit-Json -Code 0 -Payload @{ ok = $true; command = 'project'; projectDir = [System.IO.Path]::GetFullPath($resolved) }

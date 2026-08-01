@@ -6,7 +6,8 @@
 ## 特性
 
 - `/api <接口描述>` 一句话入口：AI 自动定位 Controller、提取参数与实体字段、从注释取中文名、生成 OpenAPI 规格并推送。
-- 「当前项目」自动解析：优先 Codex 打开的工作区（含 `pom.xml`/`build.gradle` 即视为 Spring Boot 项目），
+- 支持 Trae / Codex 双 AI IDE，`setup.ps1` 安装时可选。
+- 「当前项目」自动解析：优先 AI IDE 打开的工作区（含 `pom.xml`/`build.gradle` 即视为 Spring Boot 项目），
   否则使用配置 `projectDir`（可指向任意 Spring Boot 项目，如 `../crm-master`）。
 - 幂等同步：按「方法 + 路径」匹配，已存在则更新（内容未变跳过）、不存在则创建、分组缺失自动创建、默认不删除。
 - CLI 手动用法：`validate` / `push` / `list`，stdout 输出 JSON，退出码约定，可进 CI。
@@ -14,7 +15,7 @@
 
 ## 快速开始
 
-环境要求：Windows 10/11、PowerShell 5.1+（系统自带）、Git；使用 AI 入口还需要 Codex（CLI 或桌面端）。
+环境要求：Windows 10/11、PowerShell 5.1+（系统自带）、Git；使用 AI 入口还需要 Trae 或 Codex。
 
 ```powershell
 # 1. 克隆并进入仓库
@@ -24,7 +25,7 @@ cd eolink-push
 # 2. 生成配置（交互式填写凭证并测试连通性）
 powershell -NoProfile -ExecutionPolicy Bypass -File eolink\setup.ps1
 
-# 3a. 在 Codex 中打开本仓库，输入：
+# 3a. 在 Trae 或 Codex 中打开本仓库，输入：
 #     /api 客户列表接口
 
 # 3b. 或手动推送一份 OpenAPI 3.0 JSON：
@@ -66,12 +67,13 @@ stdout 为 JSON（供 AI/CI 解析），提示信息在 stderr。
 | `projectDir` | 用户 Spring Boot 项目路径（AI 提取代码用，只读） |
 | `sqlCommentsPath` | 可选：SQL 文件路径，字段中文注释兜底来源 |
 | `specPath` | 规格文件路径，默认 `specs/openapi.json` |
+| `aiIde` | 使用的 AI IDE：`trae` / `codex` / `both`，默认 `trae` |
 
 凭证也可用环境变量覆盖：`EOLINK_BASE_URL` / `EOLINK_SPACE_ID` / `EOLINK_PROJECT_ID` / `EOLINK_SECRET_KEY`。
 
 ## /api 用法（AI 入口）
 
-在 Codex 中打开本仓库（或直接打开你的 Spring Boot 项目并复制 AGENTS.md 到项目根目录）后输入：
+在 Trae 或 Codex 中打开本仓库（或直接打开你的 Spring Boot 项目并复制 AGENTS.md 到项目根目录）后输入：
 
 ```
 /api 客户管理模块接口
@@ -83,6 +85,15 @@ AI 会先解析「当前项目」（当前工作区优先，其次 `projectDir`�
 按以下优先级为字段取中文名：
 Java 字段 `// 注释` 或 Javadoc `/** 注释 */` → SQL 列 `COMMENT` → 字段名兜底。
 规格累积写入 `eolink/specs/openapi.json`，推送后汇报每个接口的创建/更新/跳过结果。
+
+## AI IDE 规则文件
+
+| AI IDE | 规则文件 | 说明 |
+| --- | --- | --- |
+| Trae | `.trae/rules/eolink-push.md` | 项目规则，`alwaysApply: true`，入库共享 |
+| Codex | `AGENTS.md` | 项目根目录，Codex 原生读取 |
+
+`setup.ps1` 安装时可选择使用的 AI IDE（Trae / Codex / Both），选择结果记录在配置 `aiIde` 字段中。
 
 ## 幂等语义
 

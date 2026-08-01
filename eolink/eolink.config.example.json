@@ -6,5 +6,6 @@
   "defaultGroup": "默认分组",
   "projectDir": "",
   "sqlCommentsPath": "",
-  "specPath": "specs/openapi.json"
+  "specPath": "specs/openapi.json",
+  "aiIde": "trae"
 }

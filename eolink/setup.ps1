@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Interactive setup for eolink-push: generate eolink.config.json and test connectivity.
 #>
@@ -19,6 +19,7 @@ $cfg = @{
     projectDir     = ''
     sqlCommentsPath = ''
     specPath       = 'specs/openapi.json'
+    aiIde          = 'trae'
 }
 
 if (Test-Path -LiteralPath $configPath) {
@@ -145,6 +146,36 @@ if ($cfg.projectId) {
 $input = Read-Host "defaultGroup (default: $($cfg.defaultGroup))"
 if ($input) { $cfg.defaultGroup = $input.Trim() }
 
+Write-Host ''
+Write-Host 'Which AI IDE are you using?' -ForegroundColor Cyan
+Write-Host '  [1] Trae (Recommended)'
+Write-Host '  [2] Codex'
+Write-Host '  [3] Both'
+$input = Read-Host "Select (default: 1)"
+$aiIde = 'trae'
+if ($input -eq '2') { $aiIde = 'codex' }
+elseif ($input -eq '3') { $aiIde = 'both' }
+$cfg.aiIde = $aiIde
+
+$repoRoot = Split-Path $scriptDir -Parent
+if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
+    $traeRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
+    if (Test-Path -LiteralPath $traeRule) {
+        Write-Host "Trae rule found: $traeRule" -ForegroundColor Green
+    } else {
+        Write-Host "WARN: Trae rule not found at $traeRule" -ForegroundColor Yellow
+    }
+}
+if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
+    $agentsMd = Join-Path $repoRoot 'AGENTS.md'
+    if (Test-Path -LiteralPath $agentsMd) {
+        Write-Host "Codex rule found: $agentsMd" -ForegroundColor Green
+    } else {
+        Write-Host "WARN: AGENTS.md not found at $agentsMd" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ''
 $input = Read-Host "projectDir (path to your Spring Boot project, default: '$($cfg.projectDir)')"
 if ($input) { $cfg.projectDir = $input.Trim() }
 
@@ -160,6 +191,7 @@ $out = [ordered]@{
     projectDir     = $cfg.projectDir
     sqlCommentsPath = $cfg.sqlCommentsPath
     specPath       = $cfg.specPath
+    aiIde          = $cfg.aiIde
 }
 
 try {
@@ -167,7 +199,12 @@ try {
     Set-Content -LiteralPath $configPath -Value $json -Encoding UTF8
     Write-Host ''
     Write-Host "Saved: $configPath" -ForegroundColor Green
-    Write-Host 'Next: open this repository in Codex and type:  /api <接口描述>' -ForegroundColor Cyan
+    if ($cfg.aiIde -eq 'trae' -or $cfg.aiIde -eq 'both') {
+        Write-Host 'Next: open this repository in Trae and type:  /api <接口描述>' -ForegroundColor Cyan
+    }
+    if ($cfg.aiIde -eq 'codex' -or $cfg.aiIde -eq 'both') {
+        Write-Host 'Next: open this repository in Codex and type:  /api <接口描述>' -ForegroundColor Cyan
+    }
     Write-Host 'Or push manually:  powershell -NoProfile -ExecutionPolicy Bypass -File eolink\eolink.ps1 list'
     exit 0
 } catch {
