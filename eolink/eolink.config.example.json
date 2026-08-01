@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://api.eolink.com",
+  "spaceId": "",
+  "projectId": "",
+  "eoSecretKey": "",
+  "defaultGroup": "默认分组",
+  "projectDir": "",
+  "sqlCommentsPath": "",
+  "specPath": "specs/openapi.json"
+}

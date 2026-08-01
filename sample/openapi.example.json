@@ -1,0 +1,100 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CRM 示例接口",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/customer/list": {
+      "get": {
+        "summary": "客户列表查询",
+        "description": "按关键字分页查询客户列表。",
+        "tags": ["客户管理"],
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "description": "搜索关键字",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "页码",
+            "schema": { "type": "integer", "example": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["code", "data"],
+                  "properties": {
+                    "code": { "type": "integer", "description": "状态码" },
+                    "msg": { "type": "string", "description": "提示信息" },
+                    "data": {
+                      "type": "array",
+                      "description": "客户列表",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer", "description": "客户ID" },
+                          "name": { "type": "string", "description": "客户名称" },
+                          "phone": { "type": "string", "description": "联系电话" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer/add": {
+      "post": {
+        "summary": "新增客户",
+        "description": "创建一条客户记录。",
+        "tags": ["客户管理"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "description": "客户名称" },
+                  "phone": { "type": "string", "description": "联系电话" },
+                  "address": { "type": "string", "description": "客户地址" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "description": "状态码" },
+                    "msg": { "type": "string", "description": "提示信息" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
