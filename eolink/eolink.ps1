@@ -623,10 +623,10 @@ function Invoke-Push {
                     if ((Get-CanonicalJson $oldBody) -eq (Get-CanonicalJson $body)) {
                         $result.action = 'skipped'; $skipped++
                     } else {
-                        $b = [ordered]@{}
+                        $b = @{}
                         foreach ($p in $body.PSObject.Properties) { $b[$p.Name] = $p.Value }
                         $b.api_id = [int]$existingApi.api_id
-                        Save-EolinkApi -Config $Config -Body ($b -as [hashtable]) | Out-Null
+                        Save-EolinkApi -Config $Config -Body $b | Out-Null
                         $result.action = 'updated'; $updated++
                     }
                 }
