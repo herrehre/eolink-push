@@ -194,12 +194,17 @@ function Add-EolinkGroup {
     $r = Invoke-Eolink -Config $Config -Path 'v2/api_studio/management/api/add_group' -FormData $form
     if (-not (Test-EolinkOk $r)) { throw (Get-EolinkFailure $r "create group '$GroupName'") }
     $id = $null
-    if ($r.Data.data) {
+    # data may be a plain number (group_id directly)
+    if ($r.Data.data -is [int] -or $r.Data.data -is [long] -or $r.Data.data -is [double]) {
+        $id = [int]$r.Data.data
+    } elseif ($r.Data.data -is [string] -and $r.Data.data -match '^\d+$') {
+        $id = [int]$r.Data.data
+    } elseif ($r.Data.data) {
         if ($null -ne $r.Data.data.group_id) { $id = $r.Data.data.group_id }
         elseif ($null -ne $r.Data.data.groupID) { $id = $r.Data.data.groupID }
     }
-    if ($null -eq $id) { $id = $r.Data.group_id }
-    if ($null -eq $id) { $id = $r.Data.groupID }
+    if ($null -eq $id -and $null -ne $r.Data.group_id) { $id = $r.Data.group_id }
+    if ($null -eq $id -and $null -ne $r.Data.groupID) { $id = $r.Data.groupID }
     return $id
 }
 
@@ -616,6 +621,9 @@ function Invoke-Push {
         try {
             $groupId = Get-GroupId -Config $Config -Groups $groups -GroupName $op.tag -DryRun $DryRun
             $body = New-EolinkApiBody -Op $op -GroupId $groupId
+            # inject space_id and project_id (required by Eolink API)
+            $body.space_id = [string]$Config.spaceId
+            $body.project_id = [string]$Config.projectId
             if ($existingApi) {
                 if ($DryRun) {
                     $result.action = 'would-update'; $updated++
@@ -682,8 +690,24 @@ function Test-SpringBootProject {
     if (-not (Test-Path -LiteralPath $Dir)) { return $false }
     $hasPom = Test-Path -LiteralPath (Join-Path $Dir 'pom.xml')
     $hasGradle = (Test-Path -LiteralPath (Join-Path $Dir 'build.gradle')) -or (Test-Path -LiteralPath (Join-Path $Dir 'build.gradle.kts'))
-    $hasJavaSrc = Test-Path -LiteralPath (Join-Path $Dir 'src\main\java')
-    return (($hasPom -or $hasGradle) -and $hasJavaSrc)
+    if (-not ($hasPom -or $hasGradle)) { return $false }
+    # single-module: src/main/java at root
+    if (Test-Path -LiteralPath (Join-Path $Dir 'src\main\java')) { return $true }
+    # multi-module: check if any immediate subdirectory has src/main/java
+    try {
+        $subs = Get-ChildItem -LiteralPath $Dir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '^\.' }
+        foreach ($sub in $subs) {
+            if (Test-Path -LiteralPath (Join-Path $sub.FullName 'src\main\java')) { return $true }
+            # nested one more level (e.g. pig-upms/pig-upms-biz/src/main/java)
+            try {
+                $sub2 = Get-ChildItem -LiteralPath $sub.FullName -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch '^\.' }
+                foreach ($s2 in $sub2) {
+                    if (Test-Path -LiteralPath (Join-Path $s2.FullName 'src\main\java')) { return $true }
+                }
+            } catch {}
+        }
+    } catch {}
+    return $false
 }
 
 function Invoke-Project {

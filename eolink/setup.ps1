@@ -271,28 +271,38 @@ try {
         Write-Host ''
         Write-Host "Deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
 
+        # calculate relative path from targetDir to repoRoot for path rewriting
+        $relRepo = [System.IO.Path]::GetRelativePath($targetDir, $repoRootFull).Replace('\', '/')
+        if ($relRepo -eq '.') { $relRepo = '' }
+
         if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
-            # copy slash command
+            # copy slash command (rewrite paths)
             $srcCmd = Join-Path $repoRoot '.trae\commands\api.md'
             $dstCmdDir = Join-Path $targetDir '.trae\commands'
             if (Test-Path -LiteralPath $srcCmd) {
                 if (-not (Test-Path -LiteralPath $dstCmdDir)) { New-Item -ItemType Directory -Path $dstCmdDir -Force | Out-Null }
-                Copy-Item -LiteralPath $srcCmd -Destination (Join-Path $dstCmdDir 'api.md') -Force
+                $content = Get-Content -LiteralPath $srcCmd -Raw -Encoding UTF8
+                if ($relRepo) { $content = $content -replace '(?<![\w/-])eolink/', "$relRepo/eolink/" }
+                [System.IO.File]::WriteAllText((Join-Path $dstCmdDir 'api.md'), $content, [System.Text.UTF8Encoding]::new($false))
                 Write-Host "  [OK] .trae/commands/api.md" -ForegroundColor Green
             }
-            # copy project rule
+            # copy project rule (rewrite paths)
             $srcRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
             $dstRuleDir = Join-Path $targetDir '.trae\rules'
             if (Test-Path -LiteralPath $srcRule) {
                 if (-not (Test-Path -LiteralPath $dstRuleDir)) { New-Item -ItemType Directory -Path $dstRuleDir -Force | Out-Null }
-                Copy-Item -LiteralPath $srcRule -Destination (Join-Path $dstRuleDir 'eolink-push.md') -Force
+                $content = Get-Content -LiteralPath $srcRule -Raw -Encoding UTF8
+                if ($relRepo) { $content = $content -replace '(?<![\w/-])eolink/', "$relRepo/eolink/" }
+                [System.IO.File]::WriteAllText((Join-Path $dstRuleDir 'eolink-push.md'), $content, [System.Text.UTF8Encoding]::new($false))
                 Write-Host "  [OK] .trae/rules/eolink-push.md" -ForegroundColor Green
             }
         }
         if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
             $srcAgents = Join-Path $repoRoot 'AGENTS.md'
             if (Test-Path -LiteralPath $srcAgents) {
-                Copy-Item -LiteralPath $srcAgents -Destination (Join-Path $targetDir 'AGENTS.md') -Force
+                $content = Get-Content -LiteralPath $srcAgents -Raw -Encoding UTF8
+                if ($relRepo) { $content = $content -replace '(?<![\w/-])eolink/', "$relRepo/eolink/" }
+                [System.IO.File]::WriteAllText((Join-Path $targetDir 'AGENTS.md'), $content, [System.Text.UTF8Encoding]::new($false))
                 Write-Host "  [OK] AGENTS.md" -ForegroundColor Green
             }
         }

@@ -11,7 +11,7 @@ description: 推送接口文档到 Eolink Apikit（参数为接口描述，如�
 1. **定位项目代码**：运行
    `powershell -NoProfile -ExecutionPolicy Bypass -File eolink/eolink.ps1 project`
    拿到项目路径，规则为：
-   - 优先：当前工作区（若含 `pom.xml`/`build.gradle` 且 `src/main/java`）；
+   - 优先：当前工作区（若含 `pom.xml`/`build.gradle` 且 `src/main/java`，或多模块项目子目录含 `src/main/java`）；
    - 其次：`eolink/eolink.config.json` 中的 `projectDir`；
    - 都没有 → 提示用户先运行 `eolink/setup.ps1` 设置 `projectDir`。
    然后根据描述定位该项目中的 Controller 方法。

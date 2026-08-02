@@ -18,7 +18,7 @@
 1. **定位项目代码（当前项目）**：先运行
    `powershell -NoProfile -ExecutionPolicy Bypass -File eolink/eolink.ps1 project`
    拿到项目路径，规则为：
-   - 优先：AI IDE 当前工作区（若含 `pom.xml`/`build.gradle` 且 `src/main/java`，即用户说的「当前项目」）；
+   - 优先：AI IDE 当前工作区（若含 `pom.xml`/`build.gradle` 且 `src/main/java`，或多模块项目子目录含 `src/main/java`，即用户说的「当前项目」）；
    - 其次：`eolink/eolink.config.json` 中的 `projectDir`（可指向 `../crm-master` 等相对路径，相对于本仓库解析）；
    - 都没有 → 提示用户先运行 `eolink/setup.ps1` 设置 `projectDir`。
    然后根据描述定位该项目中的 Controller 方法。
