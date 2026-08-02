@@ -61,7 +61,7 @@ function Get-Config {
         spaceId       = ''
         projectId     = ''
         eoSecretKey   = ''
-        defaultGroup  = '默认分组'
+        defaultGroup  = 'Default'
         projectDir    = ''
         sqlCommentsPath = ''
         specPath      = 'specs/openapi.json'

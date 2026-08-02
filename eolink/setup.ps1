@@ -15,7 +15,7 @@ $cfg = @{
     spaceId        = ''
     projectId      = ''
     eoSecretKey    = ''
-    defaultGroup   = '默认分组'
+    defaultGroup   = 'Default'
     projectDir     = ''
     sqlCommentsPath = ''
     specPath       = 'specs/openapi.json'
@@ -113,7 +113,7 @@ if ($input) {
 # baseUrl 固定为 SaaS 地址
 $cfg.baseUrl = 'https://api.eolink.com'
 
-$input = Read-Host "eoSecretKey (Eolink 空间设置 -> 开放 API -> Open API 令牌)"
+$input = Read-Host "eoSecretKey (Eolink: Space Settings -> Open API -> Token)"
 if ($input) { $cfg.eoSecretKey = $input.Trim() }
 
 # connectivity check
@@ -304,10 +304,10 @@ try {
 
     Write-Host ''
     if ($cfg.aiIde -eq 'trae' -or $cfg.aiIde -eq 'both') {
-        Write-Host 'Next: open your project in Trae and type:  /api <接口描述>' -ForegroundColor Cyan
+        Write-Host 'Next: open your project in Trae and type:  /api <description>' -ForegroundColor Cyan
     }
     if ($cfg.aiIde -eq 'codex' -or $cfg.aiIde -eq 'both') {
-        Write-Host 'Next: open your project in Codex and type:  /api <接口描述>' -ForegroundColor Cyan
+        Write-Host 'Next: open your project in Codex and type:  /api <description>' -ForegroundColor Cyan
     }
     Write-Host 'Or push manually:  powershell -NoProfile -ExecutionPolicy Bypass -File eolink\eolink.ps1 list'
     exit 0
