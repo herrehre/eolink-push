@@ -201,20 +201,33 @@ elseif ($input -eq '3') { $aiIde = 'both' }
 $cfg.aiIde = $aiIde
 
 $repoRoot = Split-Path $scriptDir -Parent
+# 验证 eolink-push 仓库内的源文件（这些是部署的源，不是目标）
 if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
     $traeRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
-    if (Test-Path -LiteralPath $traeRule) {
-        Write-Host "Trae rule found: $traeRule" -ForegroundColor Green
+    $traeCmd  = Join-Path $repoRoot '.trae\commands\api.md'
+    if ((Test-Path -LiteralPath $traeRule) -and (Test-Path -LiteralPath $traeCmd)) {
+        Write-Host "Trae source files OK (will deploy to your project later)." -ForegroundColor Green
     } else {
-        Write-Host "WARN: Trae rule not found at $traeRule" -ForegroundColor Yellow
+        Write-Host "WARN: Trae source files incomplete in $repoRoot" -ForegroundColor Yellow
     }
 }
 if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
     $agentsMd = Join-Path $repoRoot 'AGENTS.md'
     if (Test-Path -LiteralPath $agentsMd) {
-        Write-Host "Codex rule found: $agentsMd" -ForegroundColor Green
+        Write-Host "Codex source file OK (will deploy to your project later)." -ForegroundColor Green
     } else {
-        Write-Host "WARN: AGENTS.md not found at $agentsMd" -ForegroundColor Yellow
+        Write-Host "WARN: AGENTS.md not found in $repoRoot" -ForegroundColor Yellow
+    }
+}
+
+# 自动检测 projectDir：如果 eolink-push 的父目录是 Spring Boot 项目，自动填充
+$parentDir = Split-Path $repoRoot -Parent
+if (-not $cfg.projectDir -and $parentDir) {
+    $hasPom = Test-Path -LiteralPath (Join-Path $parentDir 'pom.xml')
+    $hasGradle = (Test-Path -LiteralPath (Join-Path $parentDir 'build.gradle')) -or (Test-Path -LiteralPath (Join-Path $parentDir 'build.gradle.kts'))
+    if ($hasPom -or $hasGradle) {
+        $cfg.projectDir = $parentDir
+        Write-Host "Auto-detected parent project: $parentDir" -ForegroundColor Green
     }
 }
 
@@ -245,8 +258,14 @@ try {
 
     # --- 自动部署规则/命令到用户项目 ---
     $targetDir = $cfg.projectDir
-    if ($targetDir -and (Test-Path -LiteralPath $targetDir)) {
-        $targetDir = [System.IO.Path]::GetFullPath($targetDir)
+    if ($targetDir) { $targetDir = [System.IO.Path]::GetFullPath($targetDir) }
+    $repoRootFull = [System.IO.Path]::GetFullPath($repoRoot)
+
+    if ($targetDir -and $targetDir -eq $repoRootFull) {
+        Write-Host ''
+        Write-Host "WARN: projectDir is the eolink-push repo itself, skip deploying (rules already here)." -ForegroundColor Yellow
+        Write-Host "  Set projectDir to your Spring Boot project root to enable auto-deploy." -ForegroundColor Yellow
+    } elseif ($targetDir -and (Test-Path -LiteralPath $targetDir)) {
         Write-Host ''
         Write-Host "Deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
 
@@ -277,6 +296,10 @@ try {
         }
     } elseif ($targetDir) {
         Write-Host "WARN: projectDir '$targetDir' does not exist, skip deploying rules." -ForegroundColor Yellow
+    } else {
+        Write-Host ''
+        Write-Host "WARN: projectDir is empty, skip deploying rules." -ForegroundColor Yellow
+        Write-Host "  Set projectDir in config and re-run setup to deploy /api command to your project." -ForegroundColor Yellow
     }
 
     Write-Host ''
