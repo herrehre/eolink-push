@@ -76,22 +76,24 @@ Write-Host '== eolink-push setup ==' -ForegroundColor Cyan
 Write-Host 'Credentials are stored locally in eolink.config.json (git-ignored).' -ForegroundColor DarkGray
 Write-Host ''
 
-# --- 从项目 URL 解析 spaceId / projectId ---
+# --- parse spaceId / projectId from project URL ---
 Write-Host 'Paste your Eolink project URL, e.g.:' -ForegroundColor DarkGray
-Write-Host '  https://xxx.w.eolink.com/home/api-studio/inside/.../api/12345/list?spaceKey=xxx' -ForegroundColor DarkGray
+Write-Host '  https://xxx.w.eolink.com/home/api-studio/inside/PROJECT_HASH/api/...?spaceKey=xxx' -ForegroundColor DarkGray
 $input = Read-Host "Project URL (or press Enter to keep current: spaceId='$($cfg.spaceId)' projectId='$($cfg.projectId)')"
 if ($input) {
     $url = $input.Trim()
-    # 解析 spaceId: 优先从 spaceKey 参数取，其次从域名前缀取
+    # parse spaceId: prefer spaceKey param, fallback to domain prefix
     $parsedSpace = ''
     if ($url -match '[?&]spaceKey=([^&]+)') {
         $parsedSpace = $Matches[1]
     } elseif ($url -match 'https?://([^.]+)\.w\.eolink\.com') {
         $parsedSpace = $Matches[1]
     }
-    # 解析 projectId: 从路径中 /api/数字/ 取
+    # parse projectId: prefer hash from /inside/xxx/, fallback to /api/number/
     $parsedProject = ''
-    if ($url -match '/api/(\d+)') {
+    if ($url -match '/inside/([a-zA-Z0-9]+)/') {
+        $parsedProject = $Matches[1]
+    } elseif ($url -match '/api/(\d+)') {
         $parsedProject = $Matches[1]
     }
     if ($parsedSpace) {
@@ -110,7 +112,7 @@ if ($input) {
     }
 }
 
-# baseUrl 固定为 SaaS 地址
+# baseUrl fixed to SaaS endpoint
 $cfg.baseUrl = 'https://api.eolink.com'
 
 $input = Read-Host "eoSecretKey (Eolink: Space Settings -> Open API -> Token)"
@@ -138,7 +140,7 @@ try {
     exit 3
 }
 
-# 如果 URL 中已解析到 projectId，验证其存在性
+# validate projectId from URL against API result
 if ($cfg.projectId) {
     $found = $projects | Where-Object { "$($_.project_id)" -eq "$($cfg.projectId)" } | Select-Object -First 1
     if ($found) {
@@ -149,7 +151,7 @@ if ($cfg.projectId) {
     }
 }
 
-# 如果没有 projectId（URL 未解析到或验证失败），列出项目供选择
+# if no projectId (URL parse failed or validation failed), list projects for selection
 if (-not $cfg.projectId) {
     Write-Host "Found $($projects.Count) project(s)."
     for ($i = 0; $i -lt $projects.Count; $i++) {
@@ -201,7 +203,7 @@ elseif ($input -eq '3') { $aiIde = 'both' }
 $cfg.aiIde = $aiIde
 
 $repoRoot = Split-Path $scriptDir -Parent
-# 验证 eolink-push 仓库内的源文件（这些是部署的源，不是目标）
+# verify source files in eolink-push repo (these are deploy sources, not targets)
 if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
     $traeRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
     $traeCmd  = Join-Path $repoRoot '.trae\commands\api.md'
@@ -220,7 +222,7 @@ if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
     }
 }
 
-# projectDir 固定为 eolink-push 的父目录
+# projectDir is always the parent directory of eolink-push
 $parentDir = Split-Path $repoRoot -Parent
 if ($parentDir) {
     $cfg.projectDir = $parentDir
@@ -256,7 +258,7 @@ try {
     Write-Host ''
     Write-Host "Saved: $configPath" -ForegroundColor Green
 
-    # --- 自动部署规则/命令到用户项目 ---
+    # --- auto-deploy rules/commands to user project ---
     $targetDir = $cfg.projectDir
     if ($targetDir) { $targetDir = [System.IO.Path]::GetFullPath($targetDir) }
     $repoRootFull = [System.IO.Path]::GetFullPath($repoRoot)
@@ -270,7 +272,7 @@ try {
         Write-Host "Deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
 
         if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
-            # 复制斜杠命令
+            # copy slash command
             $srcCmd = Join-Path $repoRoot '.trae\commands\api.md'
             $dstCmdDir = Join-Path $targetDir '.trae\commands'
             if (Test-Path -LiteralPath $srcCmd) {
@@ -278,7 +280,7 @@ try {
                 Copy-Item -LiteralPath $srcCmd -Destination (Join-Path $dstCmdDir 'api.md') -Force
                 Write-Host "  [OK] .trae/commands/api.md" -ForegroundColor Green
             }
-            # 复制项目规则
+            # copy project rule
             $srcRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
             $dstRuleDir = Join-Path $targetDir '.trae\rules'
             if (Test-Path -LiteralPath $srcRule) {
