@@ -242,11 +242,49 @@ try {
     Set-Content -LiteralPath $configPath -Value $json -Encoding UTF8
     Write-Host ''
     Write-Host "Saved: $configPath" -ForegroundColor Green
+
+    # --- 自动部署规则/命令到用户项目 ---
+    $targetDir = $cfg.projectDir
+    if ($targetDir -and (Test-Path -LiteralPath $targetDir)) {
+        $targetDir = [System.IO.Path]::GetFullPath($targetDir)
+        Write-Host ''
+        Write-Host "Deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
+
+        if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
+            # 复制斜杠命令
+            $srcCmd = Join-Path $repoRoot '.trae\commands\api.md'
+            $dstCmdDir = Join-Path $targetDir '.trae\commands'
+            if (Test-Path -LiteralPath $srcCmd) {
+                if (-not (Test-Path -LiteralPath $dstCmdDir)) { New-Item -ItemType Directory -Path $dstCmdDir -Force | Out-Null }
+                Copy-Item -LiteralPath $srcCmd -Destination (Join-Path $dstCmdDir 'api.md') -Force
+                Write-Host "  [OK] .trae/commands/api.md" -ForegroundColor Green
+            }
+            # 复制项目规则
+            $srcRule = Join-Path $repoRoot '.trae\rules\eolink-push.md'
+            $dstRuleDir = Join-Path $targetDir '.trae\rules'
+            if (Test-Path -LiteralPath $srcRule) {
+                if (-not (Test-Path -LiteralPath $dstRuleDir)) { New-Item -ItemType Directory -Path $dstRuleDir -Force | Out-Null }
+                Copy-Item -LiteralPath $srcRule -Destination (Join-Path $dstRuleDir 'eolink-push.md') -Force
+                Write-Host "  [OK] .trae/rules/eolink-push.md" -ForegroundColor Green
+            }
+        }
+        if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
+            $srcAgents = Join-Path $repoRoot 'AGENTS.md'
+            if (Test-Path -LiteralPath $srcAgents) {
+                Copy-Item -LiteralPath $srcAgents -Destination (Join-Path $targetDir 'AGENTS.md') -Force
+                Write-Host "  [OK] AGENTS.md" -ForegroundColor Green
+            }
+        }
+    } elseif ($targetDir) {
+        Write-Host "WARN: projectDir '$targetDir' does not exist, skip deploying rules." -ForegroundColor Yellow
+    }
+
+    Write-Host ''
     if ($cfg.aiIde -eq 'trae' -or $cfg.aiIde -eq 'both') {
-        Write-Host 'Next: open this repository in Trae and type:  /api <接口描述>' -ForegroundColor Cyan
+        Write-Host 'Next: open your project in Trae and type:  /api <接口描述>' -ForegroundColor Cyan
     }
     if ($cfg.aiIde -eq 'codex' -or $cfg.aiIde -eq 'both') {
-        Write-Host 'Next: open this repository in Codex and type:  /api <接口描述>' -ForegroundColor Cyan
+        Write-Host 'Next: open your project in Codex and type:  /api <接口描述>' -ForegroundColor Cyan
     }
     Write-Host 'Or push manually:  powershell -NoProfile -ExecutionPolicy Bypass -File eolink\eolink.ps1 list'
     exit 0
