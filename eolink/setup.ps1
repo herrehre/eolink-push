@@ -76,29 +76,60 @@ Write-Host '== eolink-push setup ==' -ForegroundColor Cyan
 Write-Host 'Credentials are stored locally in eolink.config.json (git-ignored).' -ForegroundColor DarkGray
 Write-Host ''
 
-$input = Read-Host "Eolink base URL (default: $($cfg.baseUrl))"
-if ($input) { $cfg.baseUrl = $input.Trim() }
+# --- 从项目 URL 解析 spaceId / projectId ---
+Write-Host 'Paste your Eolink project URL, e.g.:' -ForegroundColor DarkGray
+Write-Host '  https://xxx.w.eolink.com/home/api-studio/inside/.../api/12345/list?spaceKey=xxx' -ForegroundColor DarkGray
+$input = Read-Host "Project URL (or press Enter to keep current: spaceId='$($cfg.spaceId)' projectId='$($cfg.projectId)')"
+if ($input) {
+    $url = $input.Trim()
+    # 解析 spaceId: 优先从 spaceKey 参数取，其次从域名前缀取
+    $parsedSpace = ''
+    if ($url -match '[?&]spaceKey=([^&]+)') {
+        $parsedSpace = $Matches[1]
+    } elseif ($url -match 'https?://([^.]+)\.w\.eolink\.com') {
+        $parsedSpace = $Matches[1]
+    }
+    # 解析 projectId: 从路径中 /api/数字/ 取
+    $parsedProject = ''
+    if ($url -match '/api/(\d+)') {
+        $parsedProject = $Matches[1]
+    }
+    if ($parsedSpace) {
+        $cfg.spaceId = $parsedSpace
+        Write-Host "  spaceId  = $parsedSpace" -ForegroundColor Green
+    } else {
+        Write-Host "  WARN: cannot parse spaceId from URL, please input manually." -ForegroundColor Yellow
+        $input2 = Read-Host "  spaceId"
+        if ($input2) { $cfg.spaceId = $input2.Trim() }
+    }
+    if ($parsedProject) {
+        $cfg.projectId = $parsedProject
+        Write-Host "  projectId = $parsedProject" -ForegroundColor Green
+    } else {
+        Write-Host "  WARN: cannot parse projectId from URL, will select after connection test." -ForegroundColor Yellow
+    }
+}
 
-$input = Read-Host "spaceId (workspace domain identifier; empty keeps '$($cfg.spaceId)')"
-if ($input) { $cfg.spaceId = $input.Trim() }
+# baseUrl 固定为 SaaS 地址
+$cfg.baseUrl = 'https://api.eolink.com'
 
 $input = Read-Host "eoSecretKey (Eolink 空间设置 -> 开放 API -> Open API 令牌)"
 if ($input) { $cfg.eoSecretKey = $input.Trim() }
 
-# connectivity + project selection
-if (-not $cfg.baseUrl -or -not $cfg.spaceId -or -not $cfg.eoSecretKey) {
-    Write-Host 'ERROR: baseUrl/spaceId/eoSecretKey are required.' -ForegroundColor Red
+# connectivity check
+if (-not $cfg.spaceId -or -not $cfg.eoSecretKey) {
+    Write-Host 'ERROR: spaceId/eoSecretKey are required.' -ForegroundColor Red
     exit 2
 }
 
 Write-Host ''
-Write-Host 'Testing connection and loading projects ...' -ForegroundColor Cyan
+Write-Host 'Testing connection ...' -ForegroundColor Cyan
 $projects = @()
 try {
     $r = Invoke-EolinkSetupRequest -BaseUrl $cfg.baseUrl -SecretKey $cfg.eoSecretKey -Path 'v2/api_studio/management/project/search' -Body @{ space_id = $cfg.spaceId }
     if (-not $r.Data -or $r.Data.status -ne 'success') {
         Write-Host "ERROR: connection failed (HTTP $($r.StatusCode)): $($r.Body)" -ForegroundColor Red
-        Write-Host 'Hints: baseUrl should be like https://api.eolink.com (SaaS); spaceId is the workspace domain identifier; eoSecretKey is the Open API token.' -ForegroundColor Yellow
+        Write-Host 'Hints: check eoSecretKey and spaceId. baseUrl is fixed to https://api.eolink.com (SaaS).' -ForegroundColor Yellow
         exit 2
     }
     $projects = @($r.Data.result)
@@ -107,24 +138,36 @@ try {
     exit 3
 }
 
-Write-Host "Found $($projects.Count) project(s)."
-$currentProject = $cfg.projectId
-for ($i = 0; $i -lt $projects.Count; $i++) {
-    $marker = if ("$($projects[$i].project_id)" -eq "$currentProject") { ' *' } else { '' }
-    Write-Host ("  [{0}] {1}  (id: {2}){3}" -f ($i + 1), $projects[$i].project_name, $projects[$i].project_id, $marker)
+# 如果 URL 中已解析到 projectId，验证其存在性
+if ($cfg.projectId) {
+    $found = $projects | Where-Object { "$($_.project_id)" -eq "$($cfg.projectId)" } | Select-Object -First 1
+    if ($found) {
+        Write-Host "Project confirmed: $($found.project_name) (id: $($cfg.projectId))" -ForegroundColor Green
+    } else {
+        Write-Host "WARN: projectId '$($cfg.projectId)' not found in space, please select:" -ForegroundColor Yellow
+        $cfg.projectId = ''
+    }
 }
-if ($projects.Count -eq 0) {
-    Write-Host 'No project found. Create one in Eolink first.' -ForegroundColor Yellow
-    $input = Read-Host 'projectId (manual)'
-    if ($input) { $cfg.projectId = $input.Trim() }
-} else {
-    $input = Read-Host "Select project number, or paste projectId (keep '$currentProject' by pressing Enter)"
-    if ($input) {
-        $n = 0
-        if ([int]::TryParse($input, [ref]$n) -and $n -ge 1 -and $n -le $projects.Count) {
-            $cfg.projectId = "$($projects[$n - 1].project_id)"
-        } else {
-            $cfg.projectId = $input.Trim()
+
+# 如果没有 projectId（URL 未解析到或验证失败），列出项目供选择
+if (-not $cfg.projectId) {
+    Write-Host "Found $($projects.Count) project(s)."
+    for ($i = 0; $i -lt $projects.Count; $i++) {
+        Write-Host ("  [{0}] {1}  (id: {2})" -f ($i + 1), $projects[$i].project_name, $projects[$i].project_id)
+    }
+    if ($projects.Count -eq 0) {
+        Write-Host 'No project found. Create one in Eolink first.' -ForegroundColor Yellow
+        $input = Read-Host 'projectId (manual)'
+        if ($input) { $cfg.projectId = $input.Trim() }
+    } else {
+        $input = Read-Host 'Select project number or paste projectId'
+        if ($input) {
+            $n = 0
+            if ([int]::TryParse($input, [ref]$n) -and $n -ge 1 -and $n -le $projects.Count) {
+                $cfg.projectId = "$($projects[$n - 1].project_id)"
+            } else {
+                $cfg.projectId = $input.Trim()
+            }
         }
     }
 }

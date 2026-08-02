@@ -19,10 +19,10 @@
 
 ```powershell
 # 1. 克隆并进入仓库
-git clone <你的仓库地址> eolink-push
+git clone https://github.com/herrehre/eolink-push.git
 cd eolink-push
 
-# 2. 生成配置（交互式填写凭证并测试连通性）
+# 2. 生成配置（粘贴项目 URL 自动解析，只需手动输入令牌）
 powershell -NoProfile -ExecutionPolicy Bypass -File eolink\setup.ps1
 
 # 3a. 在 Trae 或 Codex 中打开本仓库，输入：
@@ -36,9 +36,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File eolink\eolink.ps1 push -Spec
 
 ## 获取 Eolink 凭证
 
-1. 登录 Eolink（SaaS 默认基址 `https://api.eolink.com`，私有部署请在 setup 中改 `baseUrl`）。
+1. 登录 Eolink，打开你的 API 项目，复制浏览器地址栏中的项目 URL（形如
+   `https://xxx.w.eolink.com/home/api-studio/inside/.../api/12345/list?spaceKey=xxx`）。
 2. 进入工作空间 **空间设置 → 开放 API**，生成 **Open API 令牌（Eo-Secret-Key）**。
-3. `spaceId` 是工作空间域名标识；`projectId` 是目标 API 项目的 ID（setup 时会列出项目供选择）。
+3. 运行 `setup.ps1`，粘贴项目 URL 即可自动解析 `spaceId` 和 `projectId`，只需手动输入令牌。
 4. setup 会自动测试连通性，并保存到 `eolink/eolink.config.json`（已被 .gitignore 排除）。
 
 ## CLI 命令
