@@ -107,6 +107,14 @@ Java 字段 `// 注释` 或 Javadoc `/** 注释 */` → SQL 列 `COMMENT` → �
 - 不存在 → 创建；目标分组不存在时自动创建。
 - 默认不删除任何已有文档（`-Clean` 暂未实现，因 Eolink Open API 未公开删除端点）。
 
+## 更新
+
+一键拉取最新版本，配置和规格文件不受影响（gitignored），规则文件自动重新部署：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File eolink-push\eolink\update.ps1
+```
+
 ## 常见问题
 
 - **401/403**：检查 `eoSecretKey` 是否正确、该空间/项目是否有权限；重新运行 `setup.ps1`。
