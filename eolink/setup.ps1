@@ -220,20 +220,20 @@ if ($aiIde -eq 'codex' -or $aiIde -eq 'both') {
     }
 }
 
-# 自动检测 projectDir：如果 eolink-push 的父目录是 Spring Boot 项目，自动填充
+# projectDir 固定为 eolink-push 的父目录
 $parentDir = Split-Path $repoRoot -Parent
-if (-not $cfg.projectDir -and $parentDir) {
+if ($parentDir) {
+    $cfg.projectDir = $parentDir
     $hasPom = Test-Path -LiteralPath (Join-Path $parentDir 'pom.xml')
     $hasGradle = (Test-Path -LiteralPath (Join-Path $parentDir 'build.gradle')) -or (Test-Path -LiteralPath (Join-Path $parentDir 'build.gradle.kts'))
     if ($hasPom -or $hasGradle) {
-        $cfg.projectDir = $parentDir
-        Write-Host "Auto-detected parent project: $parentDir" -ForegroundColor Green
+        Write-Host "projectDir = $parentDir (Spring Boot project detected)" -ForegroundColor Green
+    } else {
+        Write-Host "projectDir = $parentDir (WARN: no pom.xml/build.gradle found, /api may not work)" -ForegroundColor Yellow
     }
+} else {
+    Write-Host "WARN: cannot determine parent directory, projectDir left empty." -ForegroundColor Yellow
 }
-
-Write-Host ''
-$input = Read-Host "projectDir (path to your Spring Boot project, default: '$($cfg.projectDir)')"
-if ($input) { $cfg.projectDir = $input.Trim() }
 
 $input = Read-Host "sqlCommentsPath (optional SQL file for column comments fallback, default: '$($cfg.sqlCommentsPath)')"
 if ($input) { $cfg.sqlCommentsPath = $input.Trim() }
