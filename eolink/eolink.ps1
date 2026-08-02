@@ -174,18 +174,21 @@ function Get-EolinkGroups {
         space_id = $Config.spaceId; project_id = $Config.projectId
     }
     if (-not (Test-EolinkOk $r)) { throw (Get-EolinkFailure $r 'list groups') }
-    $flat = @()
-    function Flatten-Groups {
-        param($Nodes)
-        foreach ($g in @($Nodes)) {
-            $flat += [pscustomobject]@{
-                group_id = $g.group_id; group_name = $g.group_name; parent_group_id = $g.parent_group_id
-            }
-            if ($g.group_child_list) { Flatten-Groups -Nodes $g.group_child_list }
+    return @(Flatten-GroupNodes -Nodes $r.Data.result)
+}
+
+function Flatten-GroupNodes {
+    param($Nodes)
+    $result = @()
+    foreach ($g in @($Nodes)) {
+        $result += [pscustomobject]@{
+            group_id = $g.group_id; group_name = $g.group_name; parent_group_id = $g.parent_group_id
+        }
+        if ($g.group_child_list) {
+            $result += @(Flatten-GroupNodes -Nodes $g.group_child_list)
         }
     }
-    Flatten-Groups -Nodes $r.Data.result
-    return $flat
+    return $result
 }
 
 function Add-EolinkGroup {
