@@ -13,6 +13,23 @@ $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyI
 $repoRoot = Split-Path $scriptDir -Parent
 $configPath = Join-Path $scriptDir 'eolink.config.json'
 
+# PowerShell 5 compatible relative path ([System.IO.Path]::GetRelativePath requires PowerShell 6+/.NET Core)
+function Get-RelativePathCompat {
+    param([string]$BasePath, [string]$TargetPath)
+    $baseFull = [System.IO.Path]::GetFullPath($BasePath)
+    $targetFull = [System.IO.Path]::GetFullPath($TargetPath)
+    if ($baseFull.TrimEnd('\') -ieq $targetFull.TrimEnd('\')) { return '.' }
+    try {
+        $baseUri = New-Object System.Uri($baseFull.TrimEnd('\') + '\')
+        $targetUri = New-Object System.Uri($targetFull)
+        $rel = $baseUri.MakeRelativeUri($targetUri).ToString()
+        if ($rel -match ':') { return $targetFull } # cannot make relative (e.g. different drive)
+        return [System.Uri]::UnescapeDataString($rel)
+    } catch {
+        return $targetFull
+    }
+}
+
 Write-Host ''
 Write-Host '== eolink-push update ==' -ForegroundColor Cyan
 Write-Host ''
@@ -97,7 +114,7 @@ if ($targetDir -and $targetDir -eq $repoRootFull) {
     Write-Host ''
     Write-Host "Re-deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
 
-    $relRepo = [System.IO.Path]::GetRelativePath($targetDir, $repoRootFull).Replace('\', '/')
+    $relRepo = (Get-RelativePathCompat -BasePath $targetDir -TargetPath $repoRootFull).Replace('\', '/')
     if ($relRepo -eq '.') { $relRepo = '' }
 
     if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {

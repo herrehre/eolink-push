@@ -35,6 +35,23 @@ if (Test-Path -LiteralPath $configPath) {
     }
 }
 
+# PowerShell 5 compatible relative path ([System.IO.Path]::GetRelativePath requires PowerShell 6+/.NET Core)
+function Get-RelativePathCompat {
+    param([string]$BasePath, [string]$TargetPath)
+    $baseFull = [System.IO.Path]::GetFullPath($BasePath)
+    $targetFull = [System.IO.Path]::GetFullPath($TargetPath)
+    if ($baseFull.TrimEnd('\') -ieq $targetFull.TrimEnd('\')) { return '.' }
+    try {
+        $baseUri = New-Object System.Uri($baseFull.TrimEnd('\') + '\')
+        $targetUri = New-Object System.Uri($targetFull)
+        $rel = $baseUri.MakeRelativeUri($targetUri).ToString()
+        if ($rel -match ':') { return $targetFull } # cannot make relative (e.g. different drive)
+        return [System.Uri]::UnescapeDataString($rel)
+    } catch {
+        return $targetFull
+    }
+}
+
 function Invoke-EolinkSetupRequest {
     param([string]$BaseUrl, [string]$SecretKey, [string]$Path, [hashtable]$Body)
     try {
@@ -272,7 +289,7 @@ try {
         Write-Host "Deploying AI rules/commands to: $targetDir" -ForegroundColor Cyan
 
         # calculate relative path from targetDir to repoRoot for path rewriting
-        $relRepo = [System.IO.Path]::GetRelativePath($targetDir, $repoRootFull).Replace('\', '/')
+        $relRepo = (Get-RelativePathCompat -BasePath $targetDir -TargetPath $repoRootFull).Replace('\', '/')
         if ($relRepo -eq '.') { $relRepo = '' }
 
         if ($aiIde -eq 'trae' -or $aiIde -eq 'both') {
